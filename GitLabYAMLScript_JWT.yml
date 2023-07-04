@@ -1,0 +1,40 @@
+stages:
+  - getDifference
+  - validate
+  - deploy
+image: node:16.0.0
+before_script:
+  - echo -e "************************************\n Installing plugin tools to run script commands \n************************************"
+  - npm install sfdx-cli --global
+  - npm install --global force-dev-tool --silent &>/dev/null
+  - npm install --global force-dev-tool
+  - npm install sfdx-git-delta@latest -g
+
+get_Difference:
+  stage: getDifference
+  script:
+    - echo -e "************************************\n Getting difference between 2 commits \n************************************"
+    - git --no-pager diff --name-status origin/master origin/master
+    - git diff HEAD~1 HEAD --no-renames --name-only
+    - sgd --to HEAD --from HEAD^ --repo . --output .
+    - sfdx force:source:convert --manifest=package/package.xml --outputdir=convert
+
+validate_Changeset:
+  stage: validate
+  script:
+    - echo -e "************************************ \n Validate difference between 2 commits \n************************************"
+    - sgd --to HEAD --from HEAD^ --repo . --output .
+    - sfdx force:source:convert --manifest=package/package.xml --outputdir=convert
+    - sfdx force:auth:jwt:grant --clientid 3MVG9wt4IL4O5wvKV5n3.ZkyIbfaBF5zhCNjgosr5IHFvxm7OyC5K9FenATVS92JIaRflSJTgDQXDsWtvrDlj --jwtkeyfile assets/server.key --username kumaerajendermanras@gmail.com --setdefaultdevhubusername --setalias raccoon
+    - sfdx force:org:list
+    - sfdx force:mdapi:deploy --deploydir=convert --testlevel=NoTestRun --checkonly -w30 -u kumaerajendermanras@gmail.com
+
+deploy_Changeset:
+  stage: deploy
+  script:
+    - echo -e "************************************\n Deploy difference between 2 commits \n************************************"
+    - sgd --to HEAD --from HEAD^ --repo . --output .
+    - sfdx force:source:convert --manifest=package/package.xml --outputdir=convert
+    - sfdx force:auth:jwt:grant --clientid 3MVG9wt4IL4O5wvKV5n3.ZkyIbfaBF5zhCNjgosr5IHFvxm7OyC5K9FenATVS92JIaRflSJTgDQXDsWtvrDlj --jwtkeyfile assets/server.key --username kumaerajendermanras@gmail.com --setdefaultdevhubusername --setalias raccoon
+    - sfdx force:org:list
+    - sfdx force:mdapi:deploy --deploydir=convert --testlevel=NoTestRun -w30 -u kumaerajendermanras@gmail.com
